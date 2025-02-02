@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import Header from '../common/Header';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebaseConfig';
+import { db } from '../../firebaseConfig';
 
 export const ProfileEdit: React.FC = () => {
   const { user, roles } = useAuth();
@@ -23,7 +22,7 @@ export const ProfileEdit: React.FC = () => {
     phone: '',
     email1: '',
     email2: '',
-    profilePicture: '',
+    profilePicture: '', // Zdaj bo to samo URL
   });
 
   useEffect(() => {
@@ -34,39 +33,39 @@ export const ProfileEdit: React.FC = () => {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        setFormData(docSnap.data() as any);
+        const data = docSnap.data();
+        setFormData({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          address: {
+            street: data.address?.street || '',
+            postalCode: data.address?.postalCode || '',
+            city: data.address?.city || '',
+          },
+          phone: data.phone || '',
+          email1: data.email1 || '',
+          email2: data.email2 || '',
+          profilePicture: data.profilePicture || '',
+        });
       }
     };
-
+  
     fetchProfile();
   }, [user]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setImageFile(e.target.files[0]);
-    }
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.uid) return;
-
+  
     setLoading(true);
     try {
-      let profilePictureUrl = formData.profilePicture;
-
-      if (imageFile) {
-        const storageRef = ref(storage, `profilePictures/${user.uid}`);
-        const uploadResult = await uploadBytes(storageRef, imageFile);
-        profilePictureUrl = await getDownloadURL(uploadResult.ref);
-      }
-
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
-        ...formData,
-        profilePicture: profilePictureUrl,
+        ...formData
       });
-
+  
       navigate('/profile');
     } catch (error) {
       console.error('Napaka pri shranjevanju:', error);
@@ -93,19 +92,28 @@ export const ProfileEdit: React.FC = () => {
           
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <div>
-                <img
-                  src={imageFile ? URL.createObjectURL(imageFile) : formData.profilePicture || '/default-avatar.png'}
-                  alt="Profilna slika"
-                  className="w-32 h-32 object-cover rounded-full"
-                />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="mt-2"
-                />
-              </div>
+            <div>
+  <label className="block text-sm font-medium text-gray-700">URL profilne slike</label>
+  <input
+    type="url"
+    name="profile-picture"
+    placeholder="https://example.com/image.jpg"
+    value={formData.profilePicture}
+    onChange={(e) => setFormData({...formData, profilePicture: e.target.value})}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+  />
+  {formData.profilePicture && (
+    <img
+      src={formData.profilePicture}
+      alt="Predogled"
+      className="mt-2 w-32 h-32 object-cover rounded-full"
+      onError={(e) => {
+        e.currentTarget.src = '/default-avatar.png';
+        e.currentTarget.onerror = null;
+      }}
+    />
+  )}
+</div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

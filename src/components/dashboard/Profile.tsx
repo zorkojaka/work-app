@@ -1,4 +1,3 @@
-// Profile.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -8,18 +7,18 @@ import { db } from '../../firebaseConfig';
 
 
 interface UserProfile {
-  firstName: string;
-  lastName: string;
-  address: {
-    street: string;
-    postalCode: string;
-    city: string;
+  firstName?: string;
+  lastName?: string;
+  address?: {
+    street?: string;
+    postalCode?: string;
+    city?: string;
   };
-  phone: string;
-  email1: string;
-  email2: string;
-  profilePicture: string;
-  roles: string[];
+  phone?: string;
+  email1?: string;
+  email2?: string;
+  profilePicture?: string;
+  roles?: string[];
 }
 
 export const Profile: React.FC = () => {
@@ -36,6 +35,9 @@ export const Profile: React.FC = () => {
       
       if (docSnap.exists()) {
         setProfile(docSnap.data() as UserProfile);
+      } else {
+        // Če profil še ne obstaja, nastavimo prazen objekt
+        setProfile({});
       }
     };
 
@@ -72,42 +74,63 @@ export const Profile: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-start space-x-6">
-            <div className="w-32 h-32">
-              <img
-                src={profile.profilePicture || '/default-avatar.png'}
-                alt="Profilna slika"
-                className="w-full h-full object-cover rounded-full"
-              />
+          {/* Če še ni podatkov, prikažemo sporočilo */}
+          {!profile.firstName && !profile.lastName && (
+            <div className="text-center py-8 text-gray-500">
+              <p>Profil še ni izpolnjen</p>
+              <p>Kliknite "Uredi" za vnos podatkov</p>
             </div>
+          )}
 
-            <div className="flex-1 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-500">Ime in priimek</label>
-                  <p className="font-medium">{profile.firstName} {profile.lastName}</p>
-                </div>
-                
-                <div>
-                  <label className="text-sm text-gray-500">Vloge</label>
-                  <p className="font-medium">{profile.roles.join(', ')}</p>
-                </div>
+          {/* Če so podatki, jih prikažemo */}
+          {(profile.firstName || profile.lastName) && (
+            <div className="flex items-start space-x-6">
+              <div className="w-32 h-32">
+                <img
+                  src={profile.profilePicture || '/default-avatar.png'}
+                  alt="Profilna slika"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              </div>
 
-                <div>
-                  <label className="text-sm text-gray-500">Naslov</label>
-                  <p className="font-medium">{profile.address.street}</p>
-                  <p className="font-medium">{profile.address.postalCode} {profile.address.city}</p>
-                </div>
+              <div className="flex-1 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {(profile.firstName || profile.lastName) && (
+                    <div>
+                      <label className="text-sm text-gray-500">Ime in priimek</label>
+                      <p className="font-medium">
+                        {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || '-'}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {roles.length > 0 && (
+                    <div>
+                      <label className="text-sm text-gray-500">Vloge</label>
+                      <p className="font-medium">{roles.join(', ')}</p>
+                    </div>
+                  )}
 
-                <div>
-                  <label className="text-sm text-gray-500">Kontakt</label>
-                  <p className="font-medium">{profile.phone}</p>
-                  <p className="font-medium">{profile.email1}</p>
-                  {profile.email2 && <p className="font-medium">{profile.email2}</p>}
+                  {profile.address && (
+                    <div>
+                      <label className="text-sm text-gray-500">Naslov</label>
+                      <p className="font-medium">{profile.address.street || '-'}</p>
+                      <p className="font-medium">
+                        {[profile.address.postalCode, profile.address.city].filter(Boolean).join(' ') || '-'}
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm text-gray-500">Kontakt</label>
+                    <p className="font-medium">{profile.phone || '-'}</p>
+                    <p className="font-medium">{profile.email1 || '-'}</p>
+                    {profile.email2 && <p className="font-medium">{profile.email2}</p>}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
