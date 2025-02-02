@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './components/auth/AuthProvider';
 import { LoginPage } from './components/auth/LoginPage';
 import Dashboard from './components/dashboard/Dashboard';
 import {Profile }from './components/dashboard/Profile';
+import { ProfileEdit } from './components/dashboard/ProfileEdit';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -35,6 +36,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/profile/edit"
+            element={
+              <ProtectedRoute>
+                <ProfileEdit />
+              </ProtectedRoute>
+            }
+/>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>
