@@ -8,17 +8,19 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 
 interface AuthContextType {
   user: User | null;
-  roles: string[]; // Seznam vlog uporabnika
+  roles: string[];
+  activeRole: string;
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  switchRole: (role: string) => Promise<void>;
   error: string | null;
 }
 
@@ -26,7 +28,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [roles, setRoles] = useState<string[]>([]); // Dodano polje za vloge
+  const [roles, setRoles] = useState<string[]>([]);
+  const [activeRole, setActiveRole] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,21 +40,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // Če uporabnik še ne obstaja, ustvarimo dokument z osnovnimi podatki in privzeto vlogo "Monter"
-        await setDoc(userDocRef, {
+        // Če uporabnik še ne obstaja, ustvarimo dokument z osnovnimi podatki in privzeto vlogo "INSTALLER"
+        const initialData = {
           email: email || 'Unknown',
-          roles: ['Monter'], // Privzeta vloga
+          roles: ['INSTALLER'],
+          activeRole: 'INSTALLER',
           createdAt: serverTimestamp(),
           firstName: '',
           lastName: '',
           profilePicture: '',
           updatedAt: serverTimestamp(),
-        });
-        setRoles(['Monter']); // Nastavimo lokalno stanje za vloge
+        };
+        await setDoc(userDocRef, initialData);
+        setRoles(['INSTALLER']);
+        setActiveRole('INSTALLER');
       } else {
         // Če uporabnik že obstaja, preberemo njegove vloge
         const data = userDoc.data();
-        setRoles(data?.roles || []);
+        const userRoles = data?.roles || ['INSTALLER'];
+        setRoles(userRoles);
+        setActiveRole(data?.activeRole || userRoles[0] || 'INSTALLER');
       }
     } catch (err) {
       console.error('Napaka pri inicializaciji uporabnika:', err);
@@ -69,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setUser(null);
           setRoles([]);
+          setActiveRole('');
         }
       } catch (err) {
         console.error('Napaka pri spremljanju stanja prijave:', err);
@@ -117,6 +126,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Funkcija za preklop vloge
+  const switchRole = async (newRole: string) => {
+    if (!user || !roles.includes(newRole)) {
+      setError('Izbrana vloga ni na voljo');
+      return;
+    }
+
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        activeRole: newRole,
+        updatedAt: serverTimestamp()
+      });
+      setActiveRole(newRole);
+    } catch (err) {
+      console.error('Napaka pri preklopu vloge:', err);
+      setError('Napaka pri preklopu vloge');
+    }
+  };
+
   // Odjava
   const logout = async () => {
     try {
@@ -124,6 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
       setUser(null);
       setRoles([]);
+      setActiveRole('');
     } catch (err) {
       console.error('Napaka pri odjavi:', err);
       setError('Napaka pri odjavi.');
@@ -135,11 +165,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         roles,
+        activeRole,
         loading,
         signInWithEmail,
         signInWithGoogle,
         signUp,
         logout,
+        switchRole,
         error,
       }}
     >

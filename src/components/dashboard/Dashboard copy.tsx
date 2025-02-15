@@ -1,50 +1,73 @@
-// components/dashboard/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import Header from '../common/Header';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebaseConfig';
-import { Timestamp, collection, addDoc, doc, getDoc, getDocs, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { formatTime, calculateDuration } from '../../utils/timeUtils';
+import TravelForm from '../travel/TravelForm';
+import { Timestamp, collection, addDoc, doc, getDoc, getDocs, updateDoc, serverTimestamp, query, orderBy, where, arrayUnion } from 'firebase/firestore';
 import { calculateDistance, getAddressFromCoordinates } from '../../utils/locationUtils';
 
-// Components
-import Header from '../common/Header';
-import DateNavigation from './DateNavigation';
-import WorkStatus from './WorkStatus';
-import BreakTimer from './BreakTimer';
-import TravelInfo from './TravelInfo';
-import ActionButtons from './ActionButtons';
-import CompletedTravels from './CompletedTravels';
-import TravelForm from '../travel/TravelForm';
+// =============== INTERFACES ===============
+interface Location {
+  latitude: number;
+  longitude: number;
+  address: string;
+  timestamp: Timestamp;
+}
 
-// Types
-import { WorkSession } from '../../types/workSession';
-import { TravelOrder, Location } from '../../types/travelOrder';
+interface TravelOrder {
+  id?: string;
+  userId: string;
+  workSessionId: string;
+  startLocation: Location;
+  endLocation?: Location;
+  startTime: Timestamp;
+  endTime?: Timestamp;
+  distance: number;
+  duration: number;
+  projectId?: string;
+  purpose: string;
+  routePoints: Location[];
+}
 
-const BREAK_DURATION = 35 * 60; // 35 minut v sekundah
+interface WorkSession {
+  id: string;
+  startTimestamp: Timestamp;
+  endTimestamp?: Timestamp;
+  status: 'WORKING' | 'BREAK' | 'TRAVEL' | 'COMPLETED';
+  actions: Action[];
+}
 
+interface Action {
+  type: 'START_BREAK' | 'END_BREAK' | 'START_TRAVEL' | 'END_TRAVEL';
+  timestamp: Timestamp;
+  location?: Location;
+}
+
+// =============== MAIN COMPONENT ===============
 const Dashboard: React.FC = () => {
-  // State
-  const [currentSession, setCurrentSession] = useState<WorkSession | null>(null);
-  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [status, setStatus] = useState('Doma');
-  const [loading, setLoading] = useState(false);
-  const [workDuration, setWorkDuration] = useState<number>(0);
-  const [breakTimeLeft, setBreakTimeLeft] = useState<number | null>(null);
-
-  // Travel related state
-  const [currentTravel, setCurrentTravel] = useState<TravelOrder | null>(null);
+  // =============== STATE ===============
   const [completedTravels, setCompletedTravels] = useState<TravelOrder[]>([]);
-  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
-  const [travelDistance, setTravelDistance] = useState(0);
-  const [activeTravelTime, setActiveTravelTime] = useState<number>(0);
+  const [currentTravel, setCurrentTravel] = useState<TravelOrder | null>(null);
   const [showTravelForm, setShowTravelForm] = useState(false);
   const [isStartTravel, setIsStartTravel] = useState(true);
+  const [travelDistance, setTravelDistance] = useState(0);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
+  const [currentSession, setCurrentSession] = useState<WorkSession | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('Doma');
+  const [workDuration, setWorkDuration] = useState<number>(0);
+  const [breakTimeLeft, setBreakTimeLeft] = useState<number | null>(null);
+  const [activeTravelTime, setActiveTravelTime] = useState<number>(0);
 
   const { user, logout, roles } = useAuth();
   const navigate = useNavigate();
+  const BREAK_DURATION = 35 * 60; // 35 minut v sekundah
 
-  // Location tracking
+  // =============== LOCATION TRACKING ===============
   useEffect(() => {
     if (!navigator.geolocation) {
       console.error('Geolocation is not supported');
@@ -94,7 +117,7 @@ const Dashboard: React.FC = () => {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [currentTravel]);
 
-  // Time tracking
+  // =============== TIME TRACKING ===============
   useEffect(() => {
     if (!currentSession) return;
 
@@ -125,7 +148,7 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentSession]);
 
-  // Break timer
+  // Break time tracking
   useEffect(() => {
     if (currentSession?.status !== 'BREAK') {
       setBreakTimeLeft(null);
@@ -167,8 +190,8 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentTravel]);
 
-  // Session handlers
-  const handleStartWork = async () => {
+  // =============== WORK SESSION FUNCTIONS ===============
+  const startWork = async () => {
     if (!user || currentSession) return;
 
     setLoading(true);
@@ -200,7 +223,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleEndWork = async () => {
+  const endWork = async () => {
     if (!user || !currentSession) return;
 
     setLoading(true);
@@ -227,7 +250,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleStartBreak = async () => {
+  const startBreak = async () => {
     if (!user || !currentSession) return;
     setLoading(true);
     try {
@@ -254,7 +277,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleEndBreak = async () => {
+  const endBreak = async () => {
     if (!user || !currentSession) return;
     setLoading(true);
     try {
@@ -281,17 +304,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Travel handlers
-  const handleStartTravelClick = () => {
-    setIsStartTravel(true);
-    setShowTravelForm(true);
-  };
-
-  const handleEndTravelClick = () => {
-    setIsStartTravel(false);
-    setShowTravelForm(true);
-  };
-
+  // =============== TRAVEL FUNCTIONS ===============
   const handleStartTravel = async (formData: { address: string }) => {
     if (!user || !currentSession || !currentLocation) return;
 
@@ -379,21 +392,26 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Navigation handlers
-  const handlePreviousDay = () => {
+  // =============== DATE NAVIGATION ===============
+  const goToPreviousDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() - 1);
     setSelectedDate(newDate);
   };
 
-  const handleNextDay = () => {
+  const goToNextDay = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + 1);
     setSelectedDate(newDate);
   };
 
-  const handleTodayClick = () => {
-    setSelectedDate(new Date());
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('sl-SI', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   const isToday = (date: Date): boolean => {
@@ -401,7 +419,7 @@ const Dashboard: React.FC = () => {
     return date.toDateString() === today.toDateString();
   };
 
-  // Menu items
+  // =============== MENU SETUP ===============
   const menuItems = [
     { label: 'Domov', onClick: () => navigate('/dashboard') },
     { label: 'Profil', onClick: () => navigate('/profile') },
@@ -411,47 +429,164 @@ const Dashboard: React.FC = () => {
     { label: 'Odjava', onClick: logout },
   ];
 
+  // =============== RENDER ===============
   return (
     <div className="min-h-screen bg-gray-100">
       <Header title="Dashboard" menuItems={menuItems} />
       
+      {/* Date Navigation */}
       <div className="p-4">
-        <DateNavigation
-          selectedDate={selectedDate}
-          onPreviousDay={handlePreviousDay}
-          onNextDay={handleNextDay}
-          onTodayClick={handleTodayClick}
-        />
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={goToPreviousDay}
+              className="p-2 text-gray-600 hover:text-gray-900"
+            >
+              <span className="material-icons">chevron_left</span>
+            </button>
 
-        <WorkStatus
-          currentSession={currentSession}
-          status={status}
-          workDuration={workDuration}
-        />
+            <div className="flex flex-col items-center">
+              <h2 className="text-xl font-semibold">{formatDate(selectedDate)}</h2>
+              {!isToday(selectedDate) && (
+                <button
+                  onClick={() => setSelectedDate(new Date())}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Pojdi na današnji dan
+                </button>
+              )}
+            </div>
 
-        <BreakTimer breakTimeLeft={breakTimeLeft} />
+            <button
+              onClick={goToNextDay}
+              className="p-2 text-gray-600 hover:text-gray-900"
+              disabled={isToday(selectedDate)}
+            >
+              <span className="material-icons">chevron_right</span>
+            </button>
+          </div>
+        </div>
 
-        <TravelInfo
-          currentTravel={currentTravel}
-          activeTravelTime={activeTravelTime}
-          travelDistance={travelDistance}
-        />
+        {/* Status and Work Duration */}
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <h2 className="text-xl font-semibold mb-4">Status: {status}</h2>
+          {currentSession && (
+            <div className="space-y-2">
+              <div>
+                <span className="font-medium">Začetek dela:</span>{' '}
+                {formatTime(currentSession.startTimestamp)}
+              </div>
+              <div>
+                <span className="font-medium">Skupni čas dela:</span>{' '}
+                <span className="font-mono">
+                  {calculateDuration(new Date(0), new Date(workDuration * 1000))}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
-        <ActionButtons
-          currentSession={currentSession}
-          isToday={isToday(selectedDate)}
-          loading={loading}
-          currentTravel={!!currentTravel}
-          onStartWork={handleStartWork}
-          onEndWork={handleEndWork}
-          onStartBreak={handleStartBreak}
-          onEndBreak={handleEndBreak}
-          onStartTravel={handleStartTravelClick}
-          onEndTravel={handleEndTravelClick}
-        />
+        {/* Break Timer */}
+        {breakTimeLeft !== null && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+            <h2 className="text-lg font-semibold mb-2">Preostali čas malice</h2>
+            <div className="text-3xl font-mono text-yellow-600">
+              {Math.floor(breakTimeLeft / 60)}:
+              {String(breakTimeLeft % 60).padStart(2, '0')}
+            </div>
+          </div>
+        )}
 
-        <CompletedTravels travels={completedTravels} />
+        {/* Travel Information */}
+        {currentTravel && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+            <h2 className="text-lg font-semibold mb-2">Aktivna pot</h2>
+            <div className="space-y-2">
+              <div>Začetni naslov: {currentTravel.startLocation.address}</div>
+              <div>Trajanje: {Math.floor(activeTravelTime / 3600)}:
+                {String(Math.floor((activeTravelTime % 3600) / 60)).padStart(2, '0')}:
+                {String(activeTravelTime % 60).padStart(2, '0')}</div>
+              <div>Razdalja: {travelDistance.toFixed(2)} km</div>
+            </div>
+          </div>
+        )}
 
+        {/* Action Buttons - Only show on today */}
+        {isToday(selectedDate) && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+            <div className="grid grid-cols-2 gap-4">
+              {!currentSession && (
+                <button
+                  onClick={startWork}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md shadow hover:bg-green-600 disabled:opacity-50"
+                  disabled={loading}
+                >
+                  Začni delo
+                </button>
+              )}
+
+              {currentSession?.status === 'WORKING' && (
+                <>
+                  <button
+                    onClick={startBreak}
+                    className="px-4 py-2 bg-yellow-500 text-white rounded-md shadow hover:bg-yellow-600 disabled:opacity-50"
+                    disabled={loading}
+                  >
+                    Začni malico
+                  </button>
+
+                  {!currentTravel && (
+                    <button
+                      onClick={() => {
+                        setIsStartTravel(true);
+                        setShowTravelForm(true);
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md shadow hover:bg-blue-600 disabled:opacity-50"
+                      disabled={loading}
+                    >
+                      Začni pot
+                    </button>
+                  )}
+                </>
+              )}
+
+              {currentSession?.status === 'BREAK' && (
+                <button
+                  onClick={endBreak}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-md shadow hover:bg-yellow-700 disabled:opacity-50"
+                  disabled={loading}
+                >
+                  Zaključi malico
+                </button>
+              )}
+
+              {currentTravel && (
+                <button
+                  onClick={() => {
+                    setIsStartTravel(false);
+                    setShowTravelForm(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 disabled:opacity-50"
+                  disabled={loading}
+                >
+                  Zaključi pot
+                </button>
+              )}
+
+              {currentSession && (
+                <button
+                  onClick={endWork}
+                  className="px-4 py-2 bg-red-500 text-white rounded-md shadow hover:bg-red-600 disabled:opacity-50"
+                  disabled={loading}
+                >
+                  Zaključi delo
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Travel Form Modal */}
         {showTravelForm && currentLocation && (
           <TravelForm
             isStart={isStartTravel}
@@ -460,9 +595,42 @@ const Dashboard: React.FC = () => {
             onCancel={() => setShowTravelForm(false)}
           />
         )}
+
+        {/* Completed Travels */}
+        {completedTravels.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h2 className="text-lg font-semibold mb-4">Zaključene poti</h2>
+            <div className="space-y-4">
+              {completedTravels.map((travel) => (
+                <div key={travel.id} className="border-l-4 border-green-400 pl-4">
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <div>
+                      <p className="font-medium">Začetek:</p>
+                      <p>{travel.startLocation.address}</p>
+                      <p>{formatTime(travel.startTime)}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">Konec:</p>
+                      <p>{travel.endLocation?.address}</p>
+                      <p>{travel.endTime ? formatTime(travel.endTime) : '-'}</p>
+                    </div>
+                    <div className="mt-2">
+                      <p className="font-medium">Razdalja:</p>
+                      <p>{travel.distance.toFixed(2)} km</p>
+                    </div>
+                    <div className="mt-2">
+                      <p className="font-medium">Namen:</p>
+                      <p>{travel.purpose}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default Dashboard; 
