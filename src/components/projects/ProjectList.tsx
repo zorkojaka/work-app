@@ -1,132 +1,143 @@
-// Imports
+/**** začetek razdelka 1 - imports ****/
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
-import { useAuth } from '../auth/AuthProvider';
-import Header from '../common/Header';
 import { Project } from '../../types/project';
-import ProjectForm from './ProjectForm';
+/**** konec razdelka 1 ****/
 
-// Component definition
-const ProjectList: React.FC = () => {
-    // State management
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
-    const { user, activeRole } = useAuth();
+/**** začetek razdelka 2 - interfaces ****/
+interface KanbanBoardProps {
+    projects: Project[];
+    onProjectUpdate: () => void;
+}
 
-    // Form handling functions
-    const handleCloseForm = () => {
-        setEditingProject(null);
-        setShowForm(false);
-    };
+interface Column {
+    id: string;
+    title: string;
+    status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
+    items: Project[];
+}
+/**** konec razdelka 2 ****/
 
-    const handleEdit = (project: Project) => {
-        setEditingProject(project);
-        setShowForm(true);
-    };
+/**** začetek razdelka 3 - component ****/
+const KanbanBoard: React.FC<KanbanBoardProps> = ({ projects, onProjectUpdate }) => {
+    const [columns, setColumns] = useState<Column[]>([
+        { id: 'draft', title: 'V pripravi', status: 'DRAFT', items: [] },
+        { id: 'progress', title: 'V izvajanju', status: 'IN_PROGRESS', items: [] },
+        { id: 'completed', title: 'Zaključeno', status: 'COMPLETED', items: [] }
+    ]);
 
-    // Data fetching
-    const fetchProjects = async () => {
-        if (!user) return;
+    useEffect(() => {
+        // Razporedi projekte v ustrezne stolpce
+        const newColumns = columns.map(col => ({
+            ...col,
+            items: projects.filter(project => project.status === col.status)
+        }));
+        setColumns(newColumns);
+    }, [projects]);
 
-        try {
-            const projectsRef = collection(db, 'projects');
-            let q = query(projectsRef);
-            
-            // Filter projects based on role
-            if (activeRole === 'INSTALLER') {
-                q = query(projectsRef, where(`team.${user.uid}`, '!=', null));
+    const onDragEnd = async (result: any) => {
+        if (!result.destination) return;
+
+        const { source, destination, draggableId } = result;
+
+        if (source.droppableId === destination.droppableId) {
+            // Premik znotraj istega stolpca
+            const column = columns.find(col => col.id === source.droppableId);
+            if (!column) return;
+
+            const items = Array.from(column.items);
+            const [removed] = items.splice(source.index, 1);
+            items.splice(destination.index, 0, removed);
+
+            setColumns(columns.map(col =>
+                col.id === source.droppableId ? { ...col, items } : col
+            ));
+        } else {
+            // Premik med stolpci
+            const sourceColumn = columns.find(col => col.id === source.droppableId);
+            const destColumn = columns.find(col => col.id === destination.droppableId);
+            if (!sourceColumn || !destColumn) return;
+
+            // Posodobi Firestore
+            try {
+                const projectRef = doc(db, 'projects', draggableId);
+                await updateDoc(projectRef, {
+                    status: destColumn.status
+                });
+
+                // Posodobi lokalno stanje
+                const sourceItems = Array.from(sourceColumn.items);
+                const destItems = Array.from(destColumn.items);
+                const [removed] = sourceItems.splice(source.index, 1);
+                destItems.splice(destination.index, 0, { ...removed, status: destColumn.status });
+
+                setColumns(columns.map(col => {
+                    if (col.id === source.droppableId) {
+                        return { ...col, items: sourceItems };
+                    }
+                    if (col.id === destination.droppableId) {
+                        return { ...col, items: destItems };
+                    }
+                    return col;
+                }));
+
+                onProjectUpdate();
+            } catch (error) {
+                console.error('Error updating project status:', error);
             }
-
-            const querySnapshot = await getDocs(q);
-            const projectData = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Project[];
-
-            setProjects(projectData);
-        } catch (error) {
-            console.error('Error fetching projects:', error);
-        } finally {
-            setLoading(false);
         }
     };
+/**** konec razdelka 3 ****/
 
-    // Effects
-    useEffect(() => {
-        fetchProjects();
-    }, [user, activeRole]);
-
-    // Loading state
-    if (loading) {
-        return (
-            <>
-                <Header title="Projekti" />
-                <div className="flex justify-center items-center h-screen">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                </div>
-            </>
-        );
-    }
-
-    // Main render
+/**** začetek razdelka 4 - render ****/
     return (
-        <div className="min-h-screen bg-gray-100">
-            <Header title="Projekti" />
-            <div className="container mx-auto px-4 py-8">
-                {/* Header section */}
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Projekti</h1>
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                    >
-                        Nov projekt
-                    </button>
-                </div>
-
-                {/* Projects grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {projects.map((project) => (
-                        <div key={project.id} className="bg-white rounded-lg shadow-md p-6">
-                            <h3 className="text-xl font-semibold mb-2">{project.name}</h3>
-                            <p className="text-gray-600 mb-4">{project.description}</p>
-                            <div className="flex justify-between items-center">
-                                <span className={`px-2 py-1 rounded text-sm ${
-                                    project.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                                    project.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                    project.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
-                                    'bg-gray-100 text-gray-800'
-                                }`}>
-                                    {project.status}
-                                </span>
-                                <button
-                                    onClick={() => handleEdit(project)}
-                                    className="text-blue-500 hover:text-blue-700"
+        <DragDropContext onDragEnd={onDragEnd}>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+                {columns.map(column => (
+                    <div key={column.id} className="flex-1 min-w-[300px]">
+                        <h3 className="font-semibold mb-4 text-gray-700">{column.title}</h3>
+                        <Droppable droppableId={column.id}>
+                            {(provided) => (
+                                <div
+                                    {...provided.droppableProps}
+                                    ref={provided.innerRef}
+                                    className="bg-gray-100 p-4 rounded-lg min-h-[500px]"
                                 >
-                                    Podrobnosti
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Project form modal */}
-                {showForm && (
-                    <ProjectForm 
-                        onClose={handleCloseForm}
-                        onSuccess={() => {
-                            handleCloseForm();
-                            fetchProjects();
-                        }}
-                        editProject={editingProject}
-                    />
-                )}
+                                    {column.items.map((project, index) => (
+                                        <Draggable
+                                            key={project.id}
+                                            draggableId={project.id}
+                                            index={index}
+                                        >
+                                            {(provided, snapshot) => (
+                                                <div
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    className={`bg-white p-4 mb-3 rounded-lg shadow-sm ${
+                                                        snapshot.isDragging ? 'shadow-lg' : ''
+                                                    }`}
+                                                >
+                                                    <h4 className="font-medium text-gray-800">{project.name}</h4>
+                                                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                                        {project.description}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
+                                </div>
+                            )}
+                        </Droppable>
+                    </div>
+                ))}
             </div>
-        </div>
+        </DragDropContext>
     );
 };
 
-export default ProjectList;
+export default KanbanBoard;
+/**** konec razdelka 4 ****/

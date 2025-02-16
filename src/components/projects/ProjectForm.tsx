@@ -1,4 +1,6 @@
-// Imports section - dodajte nove importe
+// src/components/projects/ProjectForm.tsx
+
+/**** začetek razdelka 1 - imports ****/
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, doc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
@@ -7,88 +9,158 @@ import { Project } from '../../types/project';
 import { Client } from '../../types/client';
 import { Timestamp } from 'firebase/firestore';
 import ClientForm from '../crm/ClientForm';
+import ProjectTeamMembers from './ProjectTeamMembers';
+/**** konec razdelka 1 ****/
 
-// Posodobite interface za ProjectFormProps - ni sprememb
+/**** začetek razdelka 2 - interfaces ****/
 interface ProjectFormProps {
     onClose: () => void;
     onSuccess: () => void;
     editProject?: Project | null;
 }
+/**** konec razdelka 2 ****/
 
-// Dodajte novo stanje za stranke
+/**** začetek razdelka 3 - component & state ****/
+/**** začetek razdelka 3.1 - component initialization ****/
 const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSuccess, editProject }) => {
     const { user } = useAuth();
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [showClientForm, setShowClientForm] = useState(false);
     const [useClientAddress, setUseClientAddress] = useState(true);
-    
-    // ... obstoječa koda za formData ...
+/**** konec razdelka 3.1 ****/
 
-    // Dodajte funkcijo za nalaganje strank
-    const fetchClients = async () => {
-        try {
-            const clientsRef = collection(db, 'clients');
-            const snapshot = await getDocs(clientsRef);
-            const clientData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Client[];
-            setClients(clientData);
-        } catch (error) {
-            console.error('Error fetching clients:', error);
-        }
-    };
+/**** začetek razdelka 3.2 - form state ****/    
+    const [formData, setFormData] = useState<Omit<Project, 'id'>>({
+        clientId: '',
+        name: '',
+        description: '',
+        status: 'DRAFT',
+        startDate: Timestamp.now(),
+        location: {
+            street: '',
+            city: '',
+            postalCode: ''
+        },
+        team: {},
+        equipment: {
+            cameras: [],
+            materials: []
+        },
+        costs: {
+            materials: 0,
+            labor: 0,
+            travel: 0
+        },
+        lastUpdated: Timestamp.now(),
+        createdAt: Timestamp.now(),
+        createdBy: user?.uid || ''
+    });
+/**** konec razdelka 3.2 ****/
+/**** konec razdelka 3 ****/
 
-    // Posodobite useEffect
-    useEffect(() => {
-        fetchClients();
-        if (editProject) {
-            setFormData({
-                ...editProject,
-                location: editProject.location || {
-                    street: '',
-                    city: '',
-                    postalCode: ''
-                }
-            });
-            const client = clients.find(c => c.id === editProject.clientId);
-            if (client) {
-                setSelectedClient(client);
+/**** začetek razdelka 4 - handlers & effects ****/
+   /**** začetek razdelka 4.1 - data fetching ****/
+   const fetchClients = async () => {
+    try {
+        const clientsRef = collection(db, 'clients');
+        const snapshot = await getDocs(clientsRef);
+        const clientData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as Client[];
+        setClients(clientData);
+    } catch (error) {
+        console.error('Error fetching clients:', error);
+    }
+};
+
+useEffect(() => {
+    fetchClients();
+    if (editProject) {
+        setFormData({
+            ...editProject,
+            location: editProject.location || {
+                street: '',
+                city: '',
+                postalCode: ''
             }
-        }
-    }, [editProject]);
-
-    // Dodajte funkcijo za handling izbire stranke
-    const handleClientSelect = (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
+        });
+        const client = clients.find(c => c.id === editProject.clientId);
         if (client) {
             setSelectedClient(client);
-            if (useClientAddress) {
-                setFormData(prev => ({
-                    ...prev,
-                    clientId: client.id,
-                    location: {
-                        street: client.basicInfo.address.street,
-                        city: client.basicInfo.address.city,
-                        postalCode: client.basicInfo.address.postalCode
-                    }
-                }));
-            } else {
-                setFormData(prev => ({
-                    ...prev,
-                    clientId: client.id
-                }));
-            }
         }
-    };
+    }
+}, [editProject, clients]);
+/**** konec razdelka 4.1 ****/
 
-    // Posodobite obrazec - dodajte izbiro stranke in naslov takoj za poljem za opis
+/**** začetek razdelka 4.2 - event handlers ****/
+const handleClientSelect = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+        setSelectedClient(client);
+        setFormData(prevData => ({
+            ...prevData,
+            clientId: client.id,
+            name: `Projekt ${client.basicInfo.name}`,
+            location: useClientAddress ? {
+                street: client.basicInfo.address.street,
+                city: client.basicInfo.address.city,
+                postalCode: client.basicInfo.address.postalCode
+            } : prevData.location
+        }));
+    }
+};
+
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+        if (editProject?.id) {
+            const projectRef = doc(db, 'projects', editProject.id);
+            await updateDoc(projectRef, {
+                ...formData,
+                lastUpdated: Timestamp.now(),
+                team: {
+                    ...formData.team,
+                    [user.uid]: {
+                        userId: user.uid,
+                        role: 'PROJECT_MANAGER',
+                        tasks: []
+                    }
+                }
+            });
+        } else {
+            const projectsRef = collection(db, 'projects');
+            await addDoc(projectsRef, {
+                ...formData,
+                createdBy: user.uid,
+                createdAt: Timestamp.now(),
+                lastUpdated: Timestamp.now(),
+                team: {
+                    [user.uid]: {
+                        userId: user.uid,
+                        role: 'PROJECT_MANAGER',
+                        tasks: []
+                    },
+                    ...formData.team
+                }
+            });
+        }
+        onSuccess();
+        onClose();
+    } catch (error) {
+        console.error('Error saving project:', error);
+    }
+};
+/**** konec razdelka 4.2 ****/
+/**** konec razdelka 4 ****/
+
+/**** začetek razdelka 5 - render ****/
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
             <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
-                {/* ... obstoječa koda za header ... */}
-                
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Izbira stranke */}
                     <div className="flex items-end space-x-2">
@@ -129,7 +201,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSuccess, editProje
                         />
                     </div>
 
-                    {/* ... obstoječa polja za opis in status ... */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Opis</label>
+                        <textarea
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            value={formData.description}
+                            onChange={(e) => setFormData({...formData, description: e.target.value})}
+                            rows={3}
+                        />
+                    </div>
 
                     {/* Lokacija projekta */}
                     <div>
@@ -196,10 +276,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSuccess, editProje
                         </div>
                     </div>
 
-                    {/* ... obstoječa koda za gumbe ... */}
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                        >
+                            Prekliči
+                        </button>
+                        <button
+                            type="submit"
+                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                        >
+                            {editProject ? 'Posodobi' : 'Shrani'}
+                        </button>
+                    </div>
                 </form>
 
-                {/* Modal za novo stranko */}
                 {showClientForm && (
                     <ClientForm
                         onClose={() => setShowClientForm(false)}
@@ -215,3 +308,4 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSuccess, editProje
 };
 
 export default ProjectForm;
+/**** konec razdelka 5 ****/

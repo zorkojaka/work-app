@@ -40,4 +40,8 @@ export interface Project {
     team: Record<string, ProjectTeamMember>;
     equipment: ProjectEquipment;
     costs: ProjectCosts;
+    // Dodamo samo najnujnejša nova polja
+    lastUpdated?: Timestamp;
+    createdBy?: string;
+    createdAt?: Timestamp;
 }
