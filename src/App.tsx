@@ -7,6 +7,7 @@ import { Profile } from './components/dashboard/Profile';
 import { ProfileEdit } from './components/dashboard/ProfileEdit';
 import ClientList from './components/crm/ClientList';
 import UserManagement from './components/admin/UserManagement';
+import ProjectList from './components/projects/ProjectList';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -70,6 +71,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectList />
+              </ProtectedRoute>
+            }
+          />
+
+
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>

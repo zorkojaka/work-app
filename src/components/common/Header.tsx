@@ -14,13 +14,16 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
 
   // Določimo, katere vloge imajo dostop do CRM-ja
   const canAccessCRM = ['ADMIN', 'DIRECTOR', 'PROJECT_MANAGER'].includes(activeRole);
+  const canAccessProjects = ['ADMIN', 'DIRECTOR', 'PROJECT_MANAGER', 'INSTALLER'].includes(activeRole);
+
 
   const headerMenuItems = [
     { label: 'Domov', onClick: () => navigate('/dashboard') },
     { label: 'Profil', onClick: () => navigate('/profile') },
     ...(canAccessCRM ? [{ label: 'Stranke', onClick: () => navigate('/clients') }] : []),
+    ...(canAccessProjects ? [{ label: 'Projekti', onClick: () => navigate('/projects') }] : []),
+    ...(activeRole === 'ADMIN' ? [{ label: 'Uporabniki', onClick: () => navigate('/admin/users') }] : []),  
     { label: 'Odjava', onClick: logout },
-    ...(activeRole === 'ADMIN' ? [{ label: 'Uporabniki', onClick: () => navigate('/admin/users') }] : []),
   ];
 
   const toggleDropdown = () => {
