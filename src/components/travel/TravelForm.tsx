@@ -5,12 +5,8 @@ import { collection, getDocs } from 'firebase/firestore';
 
 interface TravelFormProps {
   isStart: boolean;
-  currentLocation: Location;
-  onSubmit: (data: { 
-    address: string; 
-    projectId?: string; 
-    purpose?: string;
-  }) => void;
+  currentLocation: Location | null;
+  onSubmit: (destination: string, purpose: string, projectId?: string) => void;
   onCancel: () => void;
 }
 
@@ -20,40 +16,49 @@ const TravelForm: React.FC<TravelFormProps> = ({
   onSubmit,
   onCancel
 }) => {
-  const [address, setAddress] = useState(currentLocation.address);
-  const [projectId, setProjectId] = useState('');
+  const [destination, setDestination] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Naloži projekte
   useEffect(() => {
     const fetchProjects = async () => {
-      const querySnapshot = await getDocs(collection(db, 'projects'));
-      const projectsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name
-      }));
-      setProjects(projectsData);
+      try {
+        setLoading(true);
+        const querySnapshot = await getDocs(collection(db, 'projects'));
+        const projectsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name
+        }));
+        setProjects(projectsData);
+      } catch (error) {
+        console.error('Napaka pri nalaganju projektov:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchProjects();
   }, []);
 
-  //VALIDACIJA OBRAZCA
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!isStart && (!projectId || !purpose)) {
-      // Dodajte ustrezno obravnavo napake, npr. prikaz sporočila
+      alert('Prosimo, izpolnite vsa obvezna polja');
       return;
     }
-    onSubmit({
-      address,
-      ...(isStart ? {} : { projectId, purpose })
-    });
+    
+    onSubmit(
+      destination || (currentLocation?.address || ''), 
+      purpose,
+      projectId || undefined
+    );
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
         <h2 className="text-xl font-bold mb-4">
           {isStart ? 'Začetek poti' : 'Zaključek poti'}
@@ -61,13 +66,13 @@ const TravelForm: React.FC<TravelFormProps> = ({
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Naslov</label>
+            <label className="block text-sm font-medium text-gray-700">Destinacija</label>
             <input
               type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder={currentLocation?.address || 'Vnesite destinacijo'}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
@@ -78,7 +83,7 @@ const TravelForm: React.FC<TravelFormProps> = ({
                 <select
                   value={projectId}
                   onChange={(e) => setProjectId(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 >
                   <option value="">Izberi projekt</option>
@@ -95,7 +100,7 @@ const TravelForm: React.FC<TravelFormProps> = ({
                 <textarea
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   rows={3}
                   required
                 />
@@ -103,7 +108,7 @@ const TravelForm: React.FC<TravelFormProps> = ({
             </>
           )}
 
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-2">
             <button
               type="button"
               onClick={onCancel}
@@ -114,6 +119,7 @@ const TravelForm: React.FC<TravelFormProps> = ({
             <button
               type="submit"
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              disabled={loading}
             >
               Potrdi
             </button>

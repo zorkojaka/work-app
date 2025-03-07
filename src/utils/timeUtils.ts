@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
-export const formatTime = (time: Date | Timestamp): string => {
+export const formatTime = (time: Date | Timestamp | null | undefined): string => {
+  if (!time) return '--:--:--';
   const date = time instanceof Date ? time : new Date(time.seconds * 1000);
   return date.toLocaleTimeString('sl-SI', {
     hour: '2-digit',
@@ -9,7 +10,9 @@ export const formatTime = (time: Date | Timestamp): string => {
   });
 };
 
-export const calculateDuration = (startTime: Date | Timestamp, endTime: Date | Timestamp): string => {
+export const calculateDuration = (startTime: Date | Timestamp | null | undefined, endTime: Date | Timestamp | null | undefined): string => {
+  if (!startTime || !endTime) return '00:00:00';
+  
   const start = startTime instanceof Date ? startTime : new Date(startTime.seconds * 1000);
   const end = endTime instanceof Date ? endTime : new Date(endTime.seconds * 1000);
   

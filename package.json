@@ -10,11 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@types/react-beautiful-dnd": "^13.1.8",
+    "@hello-pangea/dnd": "^18.0.1",
+    "@heroicons/react": "^2.2.0",
+    "@types/react-color": "^3.0.13",
     "@types/react-router-dom": "^5.3.3",
+    "chart.js": "^4.4.8",
+    "date-fns": "^4.1.0",
     "firebase": "^11.1.0",
     "react": "^18.3.1",
-    "react-beautiful-dnd": "^13.1.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-color": "^2.19.3",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.1.1"
   },

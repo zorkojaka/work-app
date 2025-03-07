@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import Header from '../common/Header';
+import AppHeader from '../common/AppHeader';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 
@@ -44,14 +44,14 @@ export const Profile: React.FC = () => {
     fetchProfile();
   }, [user]);
 
-  const menuItems = [
-    { label: 'Domov', onClick: () => navigate('/dashboard') },
-    { label: 'Profil', onClick: () => navigate('/profile') },
-    ...(roles.includes('Organizator') 
-      ? [{ label: 'Organizator', onClick: () => navigate('/projects') }] 
-      : []),
-    { label: 'Odjava', onClick: logout },
-  ];
+  const handleEditProfile = () => {
+    navigate('/profile/edit');
+  };
+
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
 
   if (!profile) {
     return <div>Nalaganje...</div>;
@@ -59,14 +59,14 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header title="Profil" menuItems={menuItems} />
+      <AppHeader />
       
       <div className="max-w-4xl mx-auto p-4">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-start mb-6">
             <h2 className="text-2xl font-semibold">Profil uporabnika</h2>
             <button
-              onClick={() => navigate('/profile/edit')}
+              onClick={handleEditProfile}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
               

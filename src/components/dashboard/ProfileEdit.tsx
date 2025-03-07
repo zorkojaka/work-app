@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import Header from '../common/Header';
+import AppHeader from '../common/AppHeader';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { useParams } from 'react-router-dom';
@@ -82,7 +82,7 @@ const targetUserId = userId || user?.uid;
 
   return (
     <div className="min-h-screen bg-gray-100">
-     <Header title="Urejanje profila" />
+     <AppHeader />
       
       <div className="max-w-4xl mx-auto p-4">
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">

@@ -1,40 +1,83 @@
 // components/dashboard/WorkStatus.tsx
 import React from 'react';
 import { WorkSession } from '../../types/workSession';
-import { formatTime } from '../../utils/timeUtils';
 
+// 1. DEFINICIJA TIPOV
 interface WorkStatusProps {
-  currentSession: WorkSession | null;
   status: string;
+  currentSession: WorkSession | null;
   workDuration: number;
 }
 
-const WorkStatus: React.FC<WorkStatusProps> = ({
-  currentSession,
-  status,
-  workDuration
-}) => {
+// 2. KOMPONENTA ZA PRIKAZ STANJA DELA
+const WorkStatus: React.FC<WorkStatusProps> = ({ status, currentSession, workDuration }) => {
+  // 2.1 Pomožne funkcije
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    const secs = seconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatTime = (timestamp: any): string => {
+    if (!timestamp) return '';
+    
+    const date = timestamp.toDate();
+    return date.toLocaleTimeString('sl-SI', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // 2.2 Določanje barve glede na status
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'Na lokaciji':
+        return 'bg-green-500';
+      case 'Na malici':
+        return 'bg-yellow-500';
+      case 'Na poti':
+        return 'bg-blue-500';
+      case 'Končano':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  // 2.3 Prikaz stanja dela
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-      <h2 className="text-xl font-semibold mb-4">Status: {status}</h2>
+      <h2 className="text-lg font-semibold mb-2">Stanje dela</h2>
+      <div className="flex items-center mb-3">
+        <div className={`w-3 h-3 rounded-full ${getStatusColor(status)} mr-2`}></div>
+        <span className="font-medium">{status}</span>
+      </div>
+      
       {currentSession && (
         <div className="space-y-2">
-          <div>
-            <span className="font-medium">Začetek dela:</span>{' '}
-            {formatTime(currentSession.startTimestamp)}
+          <div className="flex justify-between">
+            <span className="text-gray-600">Začetek dela:</span>
+            <span className="font-medium">{formatTime(currentSession.startTime)}</span>
           </div>
-          <div>
-            <span className="font-medium">Skupni čas dela:</span>{' '}
-            <span className="font-mono">{formatDuration(workDuration)}</span>
+          
+          <div className="flex justify-between">
+            <span className="text-gray-600">Trajanje:</span>
+            <span className="font-medium">{formatDuration(workDuration)}</span>
           </div>
+          
+          {currentSession.breakDuration > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Čas malice:</span>
+              <span className="font-medium">{formatDuration(currentSession.breakDuration)}</span>
+            </div>
+          )}
         </div>
+      )}
+      
+      {!currentSession && (
+        <p className="text-gray-500 py-2">Danes še niste začeli z delom.</p>
       )}
     </div>
   );

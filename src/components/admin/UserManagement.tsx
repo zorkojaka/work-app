@@ -3,7 +3,7 @@ import { collection, getDocs, doc, updateDoc, setDoc } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { db, auth } from '../../firebaseConfig';
 import { useAuth } from '../auth/AuthProvider';
-import Header from '../common/Header';
+import AppHeader from '../common/AppHeader';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -27,7 +27,8 @@ const AVAILABLE_ROLES = {
   'PROJECT_MANAGER': 'Vodja projektov',
   'ADMIN': 'Administrator',
   'DIRECTOR': 'Direktor',
-  'ACCOUNTANT': 'Računovodja'
+  'ACCOUNTANT': 'Računovodja',
+  'SALES': 'Prodaja'
 };
 
 const UserManagement: React.FC = () => {
@@ -154,7 +155,7 @@ const UserManagement: React.FC = () => {
   if (loading) {
     return (
       <>
-        <Header title="Upravljanje uporabnikov" />
+        <AppHeader />
         <div className="flex justify-center items-center h-screen">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
         </div>
@@ -174,7 +175,7 @@ const toggleUserExpansion = (userId: string) => {
 // Posodobite del s tabelo v return stavku:
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header title="Upravljanje uporabnikov" />
+      <AppHeader />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <button

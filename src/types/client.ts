@@ -19,4 +19,5 @@ export interface Client {
     discountValue: number;
     source: string;
     projects: string[];
+    createdAt?: { seconds: number; nanoseconds: number };
 }

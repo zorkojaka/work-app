@@ -7,7 +7,10 @@ import { Profile } from './components/dashboard/Profile';
 import { ProfileEdit } from './components/dashboard/ProfileEdit';
 import ClientList from './components/crm/ClientList';
 import UserManagement from './components/admin/UserManagement';
-import ProjectList from './components/projects/ProjectList';
+import ProjectsPage from './components/projects/ProjectsPage';
+import ProjectExecutionPage from './pages/ProjectExecutionPage';
+import CompanySettings from './components/settings/CompanySettings';
+import UISettings from './components/settings/UISettings';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -72,15 +75,45 @@ function App() {
             }
           />
           <Route
-            path="/projects"
+            path="/projects/*"
             element={
               <ProtectedRoute>
-                <ProjectList />
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />
-
-
+          <Route
+            path="/project-execution/:projectId"
+            element={
+              <ProtectedRoute>
+                <ProjectExecutionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project-execution"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/company"
+            element={
+              <ProtectedRoute>
+                <CompanySettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/ui"
+            element={
+              <ProtectedRoute>
+                <UISettings />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>

@@ -2,17 +2,20 @@
 import { Timestamp } from 'firebase/firestore';
 
 export interface WorkSession {
-  id: string;
-  startTimestamp: Timestamp;
-  endTimestamp?: Timestamp;
-  status: 'WORKING' | 'BREAK' | 'TRAVEL' | 'COMPLETED';
-  actions: Action[];
-}
-
-export interface Action {
-  type: 'START_BREAK' | 'END_BREAK' | 'START_TRAVEL' | 'END_TRAVEL';
-  timestamp: Timestamp;
-  location?: Location;
+  id?: string;
+  userId: string;
+  startTime: Timestamp;
+  endTime?: Timestamp;
+  onBreak: boolean;
+  breakStartTime?: Timestamp;
+  breakEndTime?: Timestamp;
+  breakDuration: number; // v sekundah
+  onShortBreak: boolean; // za 5-minutni odmor
+  shortBreakStartTime?: Timestamp;
+  shortBreakEndTime?: Timestamp;
+  shortBreakDuration: number; // v sekundah
+  totalBreakTimeUsed: number; // skupni čas odmorov v sekundah (malica + kratki odmori)
+  status?: 'WORKING' | 'BREAK' | 'SHORT_BREAK' | 'TRAVEL' | 'COMPLETED';
 }
 
 //// types/location.ts
@@ -32,14 +35,11 @@ import { Location } from './location';
 export interface TravelOrder {
   id?: string;
   userId: string;
-  workSessionId: string;
-  startLocation: Location;
-  endLocation?: Location;
   startTime: Timestamp;
   endTime?: Timestamp;
-  distance: number;
-  duration: number;
-  projectId?: string;
-  purpose: string;
-  routePoints: Location[];
+  startLocation?: Location;
+  endLocation?: Location;
+  distance?: number;
+  destination?: string;
+  purpose?: string;
 }

@@ -1,0 +1,29 @@
+// components/dashboard/Dashboard.tsx
+import React from 'react';
+import { useAuth } from '../auth/AuthProvider';
+
+// Role-specific dashboards
+import InstallerDashboard from './InstallerDashboard';
+import ManagerDashboard from './ManagerDashboard';
+import DirectorDashboard from './DirectorDashboard';
+import AccountantDashboard from './AccountantDashboard';
+import SalesDashboard from './SalesDashboard';
+
+// 1. GLAVNA KOMPONENTA
+const Dashboard: React.FC = () => {
+  // 1.1 Pridobivanje podatkov o uporabniku in njegovi vlogi
+  const { activeRole } = useAuth();
+
+  // 1.2 Prikaz ustrezne nadzorne plošče glede na vlogo
+  return (
+    <div>
+      {activeRole === 'INSTALLER' && <InstallerDashboard />}
+      {activeRole === 'PROJECT_MANAGER' && <ManagerDashboard />}
+      {activeRole === 'DIRECTOR' && <DirectorDashboard />}
+      {activeRole === 'ACCOUNTANT' && <AccountantDashboard />}
+      {activeRole === 'SALES' && <SalesDashboard />}
+    </div>
+  );
+};
+
+export default Dashboard;

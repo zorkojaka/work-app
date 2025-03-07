@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 import { useAuth } from '../auth/AuthProvider';
-import Header from '../common/Header';
+import AppHeader from '../common/AppHeader';
 import ClientForm from './ClientForm';
 import { Client } from '../../types/client';
 
@@ -76,7 +76,7 @@ const ClientList: React.FC = () => {
     if (loading) {
         return (
             <>
-                <Header title="Stranke" />
+                <AppHeader />
                 <div className="flex justify-center items-center h-screen">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
@@ -86,7 +86,7 @@ const ClientList: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <Header title="Stranke" />
+            <AppHeader />
             <div className="container mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Stranke</h1>

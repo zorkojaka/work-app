@@ -9,7 +9,8 @@ const RoleSwitcher: React.FC = () => {
     'PROJECT_MANAGER': 'Vodja projektov',
     'ADMIN': 'Administrator',
     'DIRECTOR': 'Direktor',
-    'ACCOUNTANT': 'Računovodja'
+    'ACCOUNTANT': 'Računovodja',
+    'SALES': 'Prodaja'
   };
 
   return (
